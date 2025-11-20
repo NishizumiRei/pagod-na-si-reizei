@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project-private xmlns="http://www.netbeans.org/ns/project-private/1">
+    <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
+    <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
+        <group>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/database/DatabaseConnection.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/gui/ReportsDialog.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/EMR.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/database/DatabaseSchemaFixer.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/dao/StaffScheduleDAO.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/gui/SystemSettingsDialog.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/gui/MedicalRecordDialog.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/manager/DataManager.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/dao/MedicalRecordDAO.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/dao/UserDAO.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/gui/UserManagementDialog.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/database/DatabaseRepairUtility.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/database/CheckDatabase.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/config/DatabaseConfig.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/models/MedicalRecord.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/models/MedicalStaff.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/gui/SignUpDialog.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/dao/PatientDAO.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/gui/PatientInformationDialog.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/gui/LoginDialog.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/gui/MainFrame.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/dao/MedicalStaffDAO.java</file>
+            <file>file:/C:/Users/engel/Documents/NetBeansProjects/pagod%20nako/src/com/emr/database/DatabaseResetUtility.java</file>
+        </group>
+    </open-files>
+</project-private>
