@@ -1,8 +1,11 @@
 package com.emr.gui;
 
+import com.emr.EMR;
+import com.emr.config.SettingsManager;
 import com.emr.dao.PatientDAO;
 import com.emr.database.DatabaseResetUtility;
 import com.emr.database.DatabaseRepairUtility;
+import com.emr.database.DatabaseSchemaFixer;
 import com.emr.manager.DataManager;
 import com.emr.models.*;
 import javax.swing.*;
@@ -19,6 +22,7 @@ public class MainFrame extends JFrame {
     private User currentUser;
     private DataManager dataManager;
     private MedicalStaff currentStaff;
+    private SettingsManager settingsManager;
     
     // Dashboard components
     private JLabel totalPatientsLabel;
@@ -46,7 +50,7 @@ public class MainFrame extends JFrame {
     }
     
     private void initializeUI() {
-        setTitle("EMR System - Dashboard");
+        setTitle("CipherChart - Your Dashboard");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1400, 850);
         setLocationRelativeTo(null);
@@ -765,66 +769,540 @@ private JLabel findLabelInPanel(JPanel card) {
         return panel;
     }
     
-    private JPanel createMedicalRecordsTab() {
+        private JPanel createMedicalRecordsTab() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(new EmptyBorder(15, 15, 15, 15));
-        
-        JLabel titleLabel = new JLabel("Medical Records - Select a patient from the Patient Records tab");
-        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        panel.add(titleLabel, BorderLayout.NORTH);
-        
-        return panel;
-    }
-    
-    private JPanel createSchedulesTab() {
-        JPanel panel = new JPanel(new BorderLayout(10, 10));
-        panel.setBorder(new EmptyBorder(15, 15, 15, 15));
-        
-        // Header
+
+        // Header panel
         JPanel headerPanel = new JPanel(new BorderLayout());
-        JLabel titleLabel = new JLabel("Medical Staff Schedules");
+        JLabel titleLabel = new JLabel("Medical Records Management");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
-        
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton addScheduleButton = new JButton("Add Schedule");
+
+        // Patient selection panel
+        JPanel patientSelectionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        patientSelectionPanel.add(new JLabel("Select Patient:"));
+
+        JComboBox<Patient> patientComboBox = new JComboBox<>();
+        loadPatientsIntoComboBox(patientComboBox);
+        patientSelectionPanel.add(patientComboBox);
+
         JButton refreshButton = new JButton("Refresh");
-        
-        addScheduleButton.setBackground(new Color(40, 167, 69));
-        addScheduleButton.setForeground(Color.WHITE);
         refreshButton.setBackground(new Color(0, 123, 255));
         refreshButton.setForeground(Color.WHITE);
-        
-        buttonPanel.add(addScheduleButton);
-        buttonPanel.add(refreshButton);
-        
+        patientSelectionPanel.add(refreshButton);
+
         headerPanel.add(titleLabel, BorderLayout.WEST);
-        headerPanel.add(buttonPanel, BorderLayout.EAST);
-        
-        // Schedules table
-        String[] columns = {"Staff", "Date", "Start", "End", "Activity", "Patient", "Status"};
-        DefaultTableModel model = new DefaultTableModel(columns, 0) {
+        headerPanel.add(patientSelectionPanel, BorderLayout.EAST);
+
+        // Medical records table
+        String[] columns = {"ID", "Date", "Diagnosis", "Treatment", "Medications", "Doctor", "Created"};
+        DefaultTableModel recordsModel = new DefaultTableModel(columns, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         };
-        
-        schedulesTable = new JTable(model);
-        schedulesTable.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        schedulesTable.setRowHeight(25);
-        
-        JScrollPane scrollPane = new JScrollPane(schedulesTable);
-        
+
+        JTable recordsTable = new JTable(recordsModel);
+        recordsTable.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        recordsTable.setRowHeight(25);
+        recordsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        recordsTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+
+        JScrollPane tableScrollPane = new JScrollPane(recordsTable);
+
+        // Action buttons panel
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JButton addRecordButton = new JButton("Add New Record");
+        JButton viewRecordButton = new JButton("View Record");
+        JButton editRecordButton = new JButton("Edit Record");
+        JButton deleteRecordButton = new JButton("Delete Record");
+        JButton printRecordButton = new JButton("Print Record");
+
+        addRecordButton.setBackground(new Color(40, 167, 69));
+        addRecordButton.setForeground(Color.WHITE);
+        viewRecordButton.setBackground(new Color(0, 123, 255));
+        viewRecordButton.setForeground(Color.WHITE);
+        editRecordButton.setBackground(new Color(255, 193, 7));
+        editRecordButton.setForeground(Color.BLACK);
+        deleteRecordButton.setBackground(new Color(220, 53, 69));
+        deleteRecordButton.setForeground(Color.WHITE);
+        printRecordButton.setBackground(new Color(108, 117, 125));
+        printRecordButton.setForeground(Color.WHITE);
+
+        actionPanel.add(addRecordButton);
+        actionPanel.add(viewRecordButton);
+        actionPanel.add(editRecordButton);
+        actionPanel.add(deleteRecordButton);
+        actionPanel.add(printRecordButton);
+
+        // Patient info panel
+        JPanel patientInfoPanel = new JPanel(new GridLayout(1, 2, 10, 10));
+        patientInfoPanel.setBorder(new TitledBorder("Patient Information"));
+
+        JTextArea patientInfoArea = new JTextArea();
+        patientInfoArea.setEditable(false);
+        patientInfoArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        patientInfoArea.setBackground(patientInfoPanel.getBackground());
+
+        JTextArea medicalSummaryArea = new JTextArea();
+        medicalSummaryArea.setEditable(false);
+        medicalSummaryArea.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        medicalSummaryArea.setBackground(patientInfoPanel.getBackground());
+
+        patientInfoPanel.add(new JScrollPane(patientInfoArea));
+        patientInfoPanel.add(new JScrollPane(medicalSummaryArea));
+
+        // Assemble the main panel
         panel.add(headerPanel, BorderLayout.NORTH);
-        panel.add(scrollPane, BorderLayout.CENTER);
-        
+        panel.add(tableScrollPane, BorderLayout.CENTER);
+        panel.add(actionPanel, BorderLayout.SOUTH);
+        panel.add(patientInfoPanel, BorderLayout.SOUTH);
+
+        // Adjust layout to include both action panel and patient info
+        JPanel southPanel = new JPanel(new BorderLayout());
+        southPanel.add(patientInfoPanel, BorderLayout.CENTER);
+        southPanel.add(actionPanel, BorderLayout.SOUTH);
+
+        panel.remove(actionPanel);
+        panel.remove(patientInfoPanel);
+        panel.add(southPanel, BorderLayout.SOUTH);
+
         // Event listeners
-        refreshButton.addActionListener(e -> loadSchedulesData());
-        addScheduleButton.addActionListener(e -> showAddScheduleDialog());
-        
-        loadSchedulesData();
+        patientComboBox.addActionListener(e -> {
+            Patient selectedPatient = (Patient) patientComboBox.getSelectedItem();
+            if (selectedPatient != null) {
+                loadPatientMedicalRecords(selectedPatient.getId(), recordsModel);
+                updatePatientInfo(selectedPatient, patientInfoArea, medicalSummaryArea);
+            } else {
+                recordsModel.setRowCount(0);
+                patientInfoArea.setText("");
+                medicalSummaryArea.setText("");
+            }
+        });
+
+        refreshButton.addActionListener(e -> {
+            loadPatientsIntoComboBox(patientComboBox);
+            Patient selectedPatient = (Patient) patientComboBox.getSelectedItem();
+            if (selectedPatient != null) {
+                loadPatientMedicalRecords(selectedPatient.getId(), recordsModel);
+                updatePatientInfo(selectedPatient, patientInfoArea, medicalSummaryArea);
+            }
+        });
+
+        addRecordButton.addActionListener(e -> {
+            Patient selectedPatient = (Patient) patientComboBox.getSelectedItem();
+            if (selectedPatient != null) {
+                addNewMedicalRecord(selectedPatient);
+            } else {
+                JOptionPane.showMessageDialog(panel, 
+                    "Please select a patient first.", 
+                    "No Patient Selected", 
+                    JOptionPane.WARNING_MESSAGE);
+            }
+        });
+
+        viewRecordButton.addActionListener(e -> {
+            int selectedRow = recordsTable.getSelectedRow();
+            if (selectedRow >= 0) {
+                int recordId = (int) recordsModel.getValueAt(selectedRow, 0);
+                viewMedicalRecord(recordId);
+            } else {
+                JOptionPane.showMessageDialog(panel, 
+                    "Please select a medical record to view.", 
+                    "No Record Selected", 
+                    JOptionPane.WARNING_MESSAGE);
+            }
+        });
+
+        editRecordButton.addActionListener(e -> {
+            int selectedRow = recordsTable.getSelectedRow();
+            if (selectedRow >= 0) {
+                int recordId = (int) recordsModel.getValueAt(selectedRow, 0);
+                editMedicalRecord(recordId);
+            } else {
+                JOptionPane.showMessageDialog(panel, 
+                    "Please select a medical record to edit.", 
+                    "No Record Selected", 
+                    JOptionPane.WARNING_MESSAGE);
+            }
+        });
+
+        deleteRecordButton.addActionListener(e -> {
+            int selectedRow = recordsTable.getSelectedRow();
+            if (selectedRow >= 0) {
+                int recordId = (int) recordsModel.getValueAt(selectedRow, 0);
+                deleteMedicalRecord(recordId, (Patient) patientComboBox.getSelectedItem(), recordsModel);
+            } else {
+                JOptionPane.showMessageDialog(panel, 
+                    "Please select a medical record to delete.", 
+                    "No Record Selected", 
+                    JOptionPane.WARNING_MESSAGE);
+            }
+        });
+
+        printRecordButton.addActionListener(e -> {
+            int selectedRow = recordsTable.getSelectedRow();
+            if (selectedRow >= 0) {
+                int recordId = (int) recordsModel.getValueAt(selectedRow, 0);
+                printMedicalRecord(recordId);
+            } else {
+                JOptionPane.showMessageDialog(panel, 
+                    "Please select a medical record to print.", 
+                    "No Record Selected", 
+                    JOptionPane.WARNING_MESSAGE);
+            }
+        });
+
+        // Load initial data if a patient is selected
+        if (patientComboBox.getItemCount() > 0) {
+            patientComboBox.setSelectedIndex(0);
+        }
+
         return panel;
     }
+
+    // Helper methods
+    private void loadPatientsIntoComboBox(JComboBox<Patient> comboBox) {
+        comboBox.removeAllItems();
+        List<Patient> patients = dataManager.getAllPatients();
+
+        DefaultComboBoxModel<Patient> model = new DefaultComboBoxModel<>();
+        for (Patient patient : patients) {
+            model.addElement(patient);
+        }
+
+        comboBox.setModel(model);
+        comboBox.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof Patient) {
+                    Patient patient = (Patient) value;
+                    setText(patient.getName() + " (ID: " + patient.getId() + ", Age: " + patient.getAge() + ")");
+                }
+                return this;
+            }
+        });
+    }
+
+    private void loadPatientMedicalRecords(int patientId, DefaultTableModel model) {
+        model.setRowCount(0);
+        List<MedicalRecord> records = dataManager.getPatientRecords(patientId);
+
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        SimpleDateFormat datetimeFormat = new SimpleDateFormat("MMM dd, yyyy HH:mm");
+
+        for (MedicalRecord record : records) {
+            String doctorName = "Unknown";
+            if (record.getDoctorId() != 0) {
+                MedicalStaff doctor = dataManager.getStaffByUserId(record.getDoctorId());
+                if (doctor != null) {
+                    doctorName = doctor.getName();
+                }
+            }
+
+            model.addRow(new Object[]{
+                record.getId(),
+                record.getRecordDate() != null ? dateFormat.format(record.getRecordDate()) : "N/A",
+                truncateText(record.getDiagnosis(), 30),
+                truncateText(record.getTreatment(), 30),
+                truncateText(record.getMedications(), 30),
+                doctorName,
+                record.getCreatedAt() != null ? datetimeFormat.format(record.getCreatedAt()) : "N/A"
+            });
+        }
+    }
+
+    private void updatePatientInfo(Patient patient, JTextArea infoArea, JTextArea summaryArea) {
+        // Basic patient information
+        StringBuilder info = new StringBuilder();
+        info.append("Name: ").append(patient.getName()).append("\n");
+        info.append("Age: ").append(patient.getAge()).append("\n");
+        info.append("Gender: ").append(patient.getGender()).append("\n");
+        info.append("Priority Level: ").append(patient.getPriorityLevel()).append("\n");
+        info.append("Last Visit: ").append(patient.getLastVisitDate() != null ? 
+            new SimpleDateFormat("yyyy-MM-dd").format(patient.getLastVisitDate()) : "Never").append("\n");
+        info.append("Insurance: ").append(patient.getInsuranceInfo() != null ? patient.getInsuranceInfo() : "Not provided");
+
+        infoArea.setText(info.toString());
+
+        // Medical summary
+        List<MedicalRecord> records = dataManager.getPatientRecords(patient.getId());
+        StringBuilder summary = new StringBuilder();
+        summary.append("Total Records: ").append(records.size()).append("\n\n");
+
+        if (!records.isEmpty()) {
+            summary.append("Recent Diagnoses:\n");
+            Set<String> recentDiagnoses = new HashSet<>();
+            for (int i = 0; i < Math.min(3, records.size()); i++) {
+                MedicalRecord record = records.get(i);
+                if (record.getDiagnosis() != null && !record.getDiagnosis().trim().isEmpty()) {
+                    recentDiagnoses.add(record.getDiagnosis());
+                }
+            }
+            for (String diagnosis : recentDiagnoses) {
+                summary.append("• ").append(truncateText(diagnosis, 40)).append("\n");
+            }
+        } else {
+            summary.append("No medical records found.");
+        }
+
+        summaryArea.setText(summary.toString());
+    }
+
+    private String truncateText(String text, int maxLength) {
+        if (text == null) return "N/A";
+        if (text.length() <= maxLength) return text;
+        return text.substring(0, maxLength - 3) + "...";
+    }
+
+    // Action methods (to be implemented)
+    private void addNewMedicalRecord(Patient patient) {
+        if (patient == null) {
+            JOptionPane.showMessageDialog(this,
+                "Please select a patient first.",
+                "No Patient Selected",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        try {
+            MedicalRecordDialog dialog = new MedicalRecordDialog(this, dataManager);
+
+            // If your dialog doesn't support setting patient directly,
+            // you might need to modify it or use this workaround:
+            MedicalRecord newRecord = new MedicalRecord();
+            newRecord.setPatientId(patient.getId());
+            newRecord.setRecordDate(new java.sql.Date(System.currentTimeMillis()));
+
+            // Set current staff as the doctor if available
+            if (currentStaff != null) {
+                newRecord.setDoctorId(currentStaff.getId());
+            }
+
+            // If your dialog has a method to set the record:
+            // dialog.setMedicalRecord(newRecord);
+
+            dialog.setVisible(true);
+
+            if (dialog.isSuccess()) {
+                // Refresh the medical records for the current patient
+                refreshMedicalRecordsForCurrentPatient();
+                JOptionPane.showMessageDialog(this,
+                    "Medical record added successfully!",
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
+            }
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                "Error creating medical record: " + e.getMessage(),
+                "Error",
+                JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+        }
+    }
+
+    private void viewMedicalRecord(int recordId) {
+        try {
+            MedicalRecord record = dataManager.getMedicalRecordById(recordId);
+            if (record != null) {
+                // Create a view-only dialog
+                JDialog viewDialog = new JDialog(this, "View Medical Record", true);
+                viewDialog.setSize(600, 500);
+                viewDialog.setLocationRelativeTo(this);
+
+                JPanel mainPanel = new JPanel(new BorderLayout());
+                mainPanel.setBorder(new EmptyBorder(15, 15, 15, 15));
+
+                // Header
+                JLabel titleLabel = new JLabel("Medical Record Details", JLabel.CENTER);
+                titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+
+                // Record details in a text area
+                JTextArea recordDetails = new JTextArea();
+                recordDetails.setEditable(false);
+                recordDetails.setFont(new Font("Monospaced", Font.PLAIN, 12));
+                recordDetails.setText(formatMedicalRecordForDisplay(record));
+
+                JScrollPane scrollPane = new JScrollPane(recordDetails);
+
+                // Close button
+                JButton closeButton = new JButton("Close");
+                closeButton.addActionListener(e -> viewDialog.dispose());
+
+                JPanel buttonPanel = new JPanel(new FlowLayout());
+                buttonPanel.add(closeButton);
+
+                mainPanel.add(titleLabel, BorderLayout.NORTH);
+                mainPanel.add(scrollPane, BorderLayout.CENTER);
+                mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+                viewDialog.add(mainPanel);
+                viewDialog.setVisible(true);
+
+            } else {
+                JOptionPane.showMessageDialog(this,
+                    "Medical record not found!",
+                    "Record Not Found",
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                "Error viewing medical record: " + e.getMessage(),
+                "Error",
+                JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+        }
+    }
+
+    private void editMedicalRecord(int recordId) {
+        try {
+            MedicalRecord record = dataManager.getMedicalRecordById(recordId);
+            if (record != null) {
+                MedicalRecordDialog dialog = new MedicalRecordDialog(this, dataManager);
+                dialog.setVisible(true);
+
+                if (dialog.isSuccess()) {
+                    refreshMedicalRecordsForCurrentPatient();
+                    JOptionPane.showMessageDialog(this,
+                        "Medical record updated successfully!",
+                        "Success",
+                        JOptionPane.INFORMATION_MESSAGE);
+                }
+            } else {
+                JOptionPane.showMessageDialog(this,
+                    "Medical record not found!",
+                    "Record Not Found",
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                "Error editing medical record: " + e.getMessage(),
+                "Error",
+                JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+        }
+    }
+
+    // Helper methods
+    private void refreshMedicalRecordsForCurrentPatient() {
+        // This method should refresh the medical records table
+        // You'll need to implement this based on your UI structure
+        Component centerComponent = ((BorderLayout) getContentPane().getLayout()).getLayoutComponent(BorderLayout.CENTER);
+        if (centerComponent instanceof JTabbedPane) {
+            JTabbedPane tabbedPane = (JTabbedPane) centerComponent;
+            Component medicalRecordsTab = tabbedPane.getComponentAt(2); // Adjust index as needed
+
+            // You'll need to traverse the component hierarchy to find your table
+            // This is a simplified approach - you might need to adjust it
+            refreshMedicalRecordsTable();
+        }
+    }
+
+    private void refreshMedicalRecordsTable() {
+        // Implement this to refresh your medical records table
+        // You'll need access to your table model
+        SwingUtilities.invokeLater(() -> {
+            // Force refresh of the medical records tab
+            tabbedPane.setSelectedIndex(2); // Switch to medical records tab
+            // Additional refresh logic here
+        });
+    }
+
+    private String formatMedicalRecordForDisplay(MedicalRecord record) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("MEDICAL RECORD DETAILS\n");
+        sb.append("=====================\n\n");
+
+        sb.append("Record ID: ").append(record.getId()).append("\n");
+        sb.append("Patient ID: ").append(record.getPatientId()).append("\n");
+
+        if (record.getRecordDate() != null) {
+            sb.append("Record Date: ").append(new SimpleDateFormat("yyyy-MM-dd").format(record.getRecordDate())).append("\n");
+        }
+
+        sb.append("\nDIAGNOSIS:\n");
+        sb.append("----------\n");
+        sb.append(record.getDiagnosis() != null ? record.getDiagnosis() : "Not specified").append("\n");
+
+        sb.append("\nTREATMENT:\n");
+        sb.append("----------\n");
+        sb.append(record.getTreatment() != null ? record.getTreatment() : "Not specified").append("\n");
+
+        sb.append("\nMEDICATIONS:\n");
+        sb.append("------------\n");
+        sb.append(record.getMedications() != null ? record.getMedications() : "Not specified").append("\n");
+
+        sb.append("\nNOTES:\n");
+        sb.append("------\n");
+        sb.append(record.getNotes() != null ? record.getNotes() : "No additional notes").append("\n");
+
+        if (record.getCreatedAt() != null) {
+            sb.append("\nCreated: ").append(new SimpleDateFormat("yyyy-MM-dd HH:mm").format(record.getCreatedAt())).append("\n");
+        }
+
+        return sb.toString();
+    }
+
+    private void printMedicalRecord(int recordId) {
+        JOptionPane.showMessageDialog(this,
+            "Print functionality for medical record ID: " + recordId + "\n\n" +
+            "This would generate a printable report of the medical record.",
+            "Print Medical Record",
+            JOptionPane.INFORMATION_MESSAGE);
+    }
+
+        private JPanel createSchedulesTab() {
+            JPanel panel = new JPanel(new BorderLayout(10, 10));
+            panel.setBorder(new EmptyBorder(15, 15, 15, 15));
+
+            // Header
+            JPanel headerPanel = new JPanel(new BorderLayout());
+            JLabel titleLabel = new JLabel("Medical Staff Schedules");
+            titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 18));
+
+            JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            JButton addScheduleButton = new JButton("Add Schedule");
+            JButton refreshButton = new JButton("Refresh");
+
+            addScheduleButton.setBackground(new Color(40, 167, 69));
+            addScheduleButton.setForeground(Color.WHITE);
+            refreshButton.setBackground(new Color(0, 123, 255));
+            refreshButton.setForeground(Color.WHITE);
+
+            buttonPanel.add(addScheduleButton);
+            buttonPanel.add(refreshButton);
+
+            headerPanel.add(titleLabel, BorderLayout.WEST);
+            headerPanel.add(buttonPanel, BorderLayout.EAST);
+
+            // Schedules table
+            String[] columns = {"Staff", "Date", "Start", "End", "Activity", "Patient", "Status"};
+            DefaultTableModel model = new DefaultTableModel(columns, 0) {
+                @Override
+                public boolean isCellEditable(int row, int column) {
+                    return false;
+                }
+            };
+
+            schedulesTable = new JTable(model);
+            schedulesTable.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            schedulesTable.setRowHeight(25);
+
+            JScrollPane scrollPane = new JScrollPane(schedulesTable);
+
+            panel.add(headerPanel, BorderLayout.NORTH);
+            panel.add(scrollPane, BorderLayout.CENTER);
+
+            // Event listeners
+            refreshButton.addActionListener(e -> loadSchedulesData());
+            addScheduleButton.addActionListener(e -> showAddScheduleDialog());
+
+            loadSchedulesData();
+            return panel;
+        }
     
     private void loadDashboardData() {
         // Update metrics
@@ -1120,15 +1598,166 @@ private JLabel findLabelInPanel(JPanel card) {
             "Confirm Reset", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         
         if (confirm == JOptionPane.YES_OPTION) {
-            // Implementation would use DatabaseResetUtility class
-            JOptionPane.showMessageDialog(this, "Database reset would be implemented here.");
+            // Final confirmation with password for critical operation
+            String password = JOptionPane.showInputDialog(this,
+                "<html><b>Final Confirmation Required</b><br><br>" +
+                "Please type 'RESET' to confirm database reset:<br>" +
+                "<small>(This is case-sensitive)</small></html>",
+                "Final Confirmation",
+                JOptionPane.WARNING_MESSAGE);
+
+            if ("RESET".equals(password)) {
+                // Show progress dialog
+                JDialog progressDialog = new JDialog(this, "Resetting Database", true);
+                progressDialog.setLayout(new BorderLayout());
+                progressDialog.setSize(400, 120);
+                progressDialog.setLocationRelativeTo(this);
+
+                JLabel progressLabel = new JLabel("Resetting database... This may take a moment.", JLabel.CENTER);
+                JProgressBar progressBar = new JProgressBar();
+                progressBar.setIndeterminate(true);
+
+                progressDialog.add(progressLabel, BorderLayout.CENTER);
+                progressDialog.add(progressBar, BorderLayout.SOUTH);
+
+                // Run the reset in a background thread
+                new Thread(() -> {
+                    try {
+                        progressDialog.setVisible(true);
+                    } catch (Exception e) {
+                        // Ignore visibility exceptions
+                    }
+                }).start();
+
+                new Thread(() -> {
+                    boolean success = false;
+                    String resultMessage = "";
+
+
+                    SwingUtilities.invokeLater(() -> {
+                        progressDialog.dispose();
+
+                        JOptionPane.showMessageDialog(this,
+                            resultMessage,
+                            "Reset Operation Complete",
+                            success ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.ERROR_MESSAGE);
+
+                        if (success) {
+                            // Restart the application or refresh all data
+                            int restartChoice = JOptionPane.showConfirmDialog(this,
+                                "<html><b>Restart Required</b><br><br>" +
+                                "The database has been reset successfully.<br>" +
+                                "Do you want to restart the application now?</html>",
+                                "Restart Application",
+                                JOptionPane.YES_NO_OPTION,
+                                JOptionPane.QUESTION_MESSAGE);
+
+                            if (restartChoice == JOptionPane.YES_OPTION) {
+                                // Close current application and restart
+                                dispose();
+                                new java.util.Timer().schedule(
+                                    new java.util.TimerTask() {
+                                        @Override
+                                        public void run() {
+                                            // Restart the EMR application
+                                            try {
+                                                String javaBin = System.getProperty("java.home") + "/bin/java";
+                                                String classpath = System.getProperty("java.class.path");
+                                                String className = EMR.class.getName();
+
+                                                ProcessBuilder builder = new ProcessBuilder(
+                                                    javaBin, "-cp", classpath, className
+                                                );
+                                                builder.start();
+                                            } catch (Exception ex) {
+                                                // Fallback: just show message
+                                                JOptionPane.showMessageDialog(null,
+                                                    "Please manually restart the application.",
+                                                    "Restart Required",
+                                                    JOptionPane.INFORMATION_MESSAGE);
+                                            }
+                                            System.exit(0);
+                                        }
+                                    },
+                                    1000
+                                );
+                            } else {
+                                // Just refresh all data
+                                refreshData();
+                                JOptionPane.showMessageDialog(this,
+                                    "Please note: Some features may not work correctly until the application is restarted.",
+                                    "Manual Restart Recommended",
+                                    JOptionPane.WARNING_MESSAGE);
+                            }
+                        }
+                    });
+                }).start();
+
+            } else {
+                if (password != null) { // User didn't click cancel
+                    JOptionPane.showMessageDialog(this,
+                        "<html>Reset operation cancelled.<br>" +
+                        "The confirmation text did not match 'RESET'.</html>",
+                        "Reset Cancelled",
+                        JOptionPane.INFORMATION_MESSAGE);
+                }
+            }
         }
     }
     
     private void fixDatabaseSchema() {
-        // Implementation would use DatabaseSchemaFixer class
-        JOptionPane.showMessageDialog(this, "Database schema fix would be implemented here.");
+    int choice = JOptionPane.showConfirmDialog(this,
+        "This will check and fix any database schema issues.\n\n" +
+        "This process will:\n" +
+        "• Add missing tables if they don't exist\n" +
+        "• Add missing columns to existing tables\n" +
+        "• Fix data type inconsistencies\n" +
+        "• Update table constraints\n\n" +
+        "Do you want to continue?",
+        "Fix Database Schema",
+        JOptionPane.YES_NO_OPTION,
+        JOptionPane.QUESTION_MESSAGE);
+    
+    if (choice == JOptionPane.YES_OPTION) {
+        // Show progress dialog
+        JDialog progressDialog = new JDialog(this, "Fixing Database Schema", true);
+        progressDialog.setLayout(new BorderLayout());
+        progressDialog.setSize(400, 120);
+        progressDialog.setLocationRelativeTo(this);
+        
+        JLabel progressLabel = new JLabel("Checking and fixing database schema...", JLabel.CENTER);
+        JProgressBar progressBar = new JProgressBar();
+        progressBar.setIndeterminate(true);
+        
+        progressDialog.add(progressLabel, BorderLayout.CENTER);
+        progressDialog.add(progressBar, BorderLayout.SOUTH);
+        
+        // Run the schema fix in a background thread
+        new Thread(() -> {
+            try {
+                progressDialog.setVisible(true);
+            } catch (Exception e) {
+                // Ignore visibility exceptions
+            }
+        }).start();
+        
+        new Thread(() -> {
+          
+                // Use your DatabaseSchemaFixer class
+                DatabaseSchemaFixer schemaFixer = new DatabaseSchemaFixer();
+                schemaFixer.fixDatabaseSchema();
+                
+                
+                SwingUtilities.invokeLater(() -> {
+                    progressDialog.dispose();
+                    JOptionPane.showMessageDialog(this,
+                        "Error fixing database schema:\n",
+                        "Schema Fix Error",
+                        JOptionPane.ERROR_MESSAGE);
+                });
+            });
     }
+}
     
     private void showPatientInformationDialog() {
         PatientInformationDialog dialog = new PatientInformationDialog(this, dataManager);
@@ -1168,7 +1797,7 @@ private JLabel findLabelInPanel(JPanel card) {
             int patientId = (int) patientsTable.getValueAt(selectedRow, 0);
 
             PatientDAO patientDAO = new PatientDAO();
-            Patient patient = patientDAO.getPatientByID(patientID);
+            Patient patient = patientDAO.getPatientById(patientId);
 
             if(patient != null) {
                 PatientEditDialog editDialog = new PatientEditDialog(this, patient);
@@ -1278,12 +1907,163 @@ private JLabel findLabelInPanel(JPanel card) {
         }
     }
 
-    private PopupMenu createDefaultWelcomePanel() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    private JPanel createDefaultWelcomePanel() {
+        JPanel panel = createStyledPanel("Welcome to EMR System", new Color(248, 249, 250));
+        panel.setLayout(new BorderLayout());
+
+        JTextArea welcomeText = new JTextArea();
+        welcomeText.setText("Welcome to CipherChart™!\n\n" +
+                           "This system provides comprehensive healthcare management\n" +
+                           "tools for medical professionals and administrators.\n\n" +
+                           "Features Available:\n" +
+                           "• Patient record management\n" +
+                           "• Medical staff scheduling\n" +
+                           "• Secure data access\n" +
+                           "• Reporting and analytics\n\n" +
+                           "Please use the navigation menu to access different features\n" +
+                           "based on your role permissions.");
+        welcomeText.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        welcomeText.setEditable(false);
+        welcomeText.setBackground(panel.getBackground());
+        welcomeText.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        // Center the text
+        welcomeText.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JPanel centerPanel = new JPanel(new BorderLayout());
+        centerPanel.setBackground(panel.getBackground());
+        centerPanel.add(welcomeText, BorderLayout.CENTER);
+
+        panel.add(centerPanel, BorderLayout.CENTER);
+
+        return panel;
     }
 
     private void showAboutDialog() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        JDialog aboutDialog = new JDialog(this, "About CipherChart", true);
+        aboutDialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        aboutDialog.setSize(500, 600);
+        aboutDialog.setLocationRelativeTo(this);
+        aboutDialog.setResizable(true);
+
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBorder(new EmptyBorder(20, 20, 20, 20));
+        mainPanel.setBackground(Color.WHITE);
+
+        // Header with icon and title
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(Color.WHITE);
+        headerPanel.setBorder(new EmptyBorder(0, 0, 15, 0));
+
+        JLabel iconLabel = new JLabel("🏥", JLabel.CENTER);
+        iconLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 48));
+        iconLabel.setBorder(new EmptyBorder(0, 0, 10, 0));
+
+        JLabel titleLabel = new JLabel("CipherChart™", JLabel.CENTER);
+        titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 20));
+        titleLabel.setForeground(new Color(0, 102, 204));
+
+        JLabel versionLabel = new JLabel("Version 1.0", JLabel.CENTER);
+        versionLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        versionLabel.setForeground(new Color(100, 100, 100));
+
+        headerPanel.add(iconLabel, BorderLayout.NORTH);
+        headerPanel.add(titleLabel, BorderLayout.CENTER);
+        headerPanel.add(versionLabel, BorderLayout.SOUTH);
+
+        // Content panel
+        JPanel contentPanel = new JPanel();
+        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
+        contentPanel.setBackground(Color.WHITE);
+        contentPanel.setBorder(new EmptyBorder(15, 0, 15, 0));
+
+        // System information
+        String[] infoLines = {
+            "CipherChart EMR - Professional Healthcare Management",
+            "",
+            "Developed for: Healthcare Professionals",
+            "License: Proprietary",
+            "Database: SQLite",
+            "",
+            "Features:",
+            "• Patient Record Management",
+            "• Medical Staff Scheduling",
+            "• Medical Records System",
+            "• Role-based Access Control",
+            "• Statistics and Reporting",
+            "",
+            "Security: HIPAA Compliant Design",
+            "Data Protection: AES-256 Encryption"
+        };
+
+        for (String line : infoLines) {
+            JLabel infoLabel = new JLabel(line);
+            infoLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            infoLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            if (line.startsWith("•")) {
+                infoLabel.setBorder(new EmptyBorder(2, 20, 2, 0));
+            } else if (line.isEmpty()) {
+                infoLabel.setBorder(new EmptyBorder(5, 0, 5, 0));
+            } else {
+                infoLabel.setBorder(new EmptyBorder(2, 0, 2, 0));
+            }
+            contentPanel.add(infoLabel);
+        }
+
+        // Footer with copyright and system info
+        JPanel footerPanel = new JPanel();
+        footerPanel.setLayout(new BoxLayout(footerPanel, BoxLayout.Y_AXIS));
+        footerPanel.setBackground(Color.WHITE);
+        footerPanel.setBorder(new EmptyBorder(15, 0, 0, 0));
+
+        JLabel copyrightLabel = new JLabel("© 2024 CipherChart Healthcare Solutions", JLabel.CENTER);
+        copyrightLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        copyrightLabel.setForeground(new Color(150, 150, 150));
+        copyrightLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel systemLabel = new JLabel("Java " + System.getProperty("java.version") + 
+                                       " | " + System.getProperty("os.name"), JLabel.CENTER);
+        systemLabel.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        systemLabel.setForeground(new Color(180, 180, 180));
+        systemLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        footerPanel.add(copyrightLabel);
+        footerPanel.add(Box.createVerticalStrut(5));
+        footerPanel.add(systemLabel);
+
+        // Close button
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        buttonPanel.setBackground(Color.WHITE);
+        buttonPanel.setBorder(new EmptyBorder(15, 0, 0, 0));
+
+        JButton closeButton = new JButton("Close");
+        closeButton.setBackground(new Color(0, 123, 255));
+        closeButton.setForeground(Color.WHITE);
+        closeButton.setFocusPainted(false);
+        closeButton.setPreferredSize(new Dimension(100, 30));
+
+        closeButton.addActionListener(e -> aboutDialog.dispose());
+
+        buttonPanel.add(closeButton);
+
+        // Assemble the dialog
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+        mainPanel.add(contentPanel, BorderLayout.CENTER);
+        mainPanel.add(footerPanel, BorderLayout.SOUTH);
+        mainPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        // Adjust layout to include both footer and button panel
+        JPanel southPanel = new JPanel(new BorderLayout());
+        southPanel.setBackground(Color.WHITE);
+        southPanel.add(footerPanel, BorderLayout.CENTER);
+        southPanel.add(buttonPanel, BorderLayout.SOUTH);
+
+        mainPanel.remove(footerPanel);
+        mainPanel.remove(buttonPanel);
+        mainPanel.add(southPanel, BorderLayout.SOUTH);
+
+        aboutDialog.add(mainPanel);
+        aboutDialog.setVisible(true);
     }
     
     private void fixDatabaseIssues() {
@@ -1310,13 +2090,13 @@ private JLabel findLabelInPanel(JPanel card) {
     }
 
     private void showUserManagement() {
-    UserManagementDialog dialog = new UserManagementDialog(this, dataManager);
+        UserManagementDialog dialog = new UserManagementDialog(this, dataManager);
         dialog.setVisible(true);    
     }
 
     private void showSystemSettings() {
-    SystemSettingsDialog dialog = new SystemSettingsDialog(this);
-    dialog.setVisible(true);
+        SystemSettingsDialog dialog = new SystemSettingsDialog(this);
+        dialog.setVisible(true);
     }
     
     private void showSystemReports() {
@@ -1347,5 +2127,6 @@ private JLabel findLabelInPanel(JPanel card) {
             e.printStackTrace();
         }
     }
+    
 
 }
